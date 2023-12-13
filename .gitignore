@@ -1,2 +1,5 @@
 models/
 data/
+cl/
+wandb/
+results/

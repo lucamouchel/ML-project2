@@ -9,9 +9,9 @@ class DatasetLoader():
         self.tokenizer = tokenizer
     
     def load_data(self):
-        pos = pd.read_csv('data/train_pos.txt', delimiter='\t', header=None).sample(10000, random_state=42)
+        pos = pd.read_csv('data/train_pos_full.txt', header=None, delimiter='\t').sample(10000, random_state=3)
         pos['label'] = 1
-        neg = pd.read_csv('data/train_neg.txt', delimiter='\t', header=None).sample(10000, random_state=42)
+        neg = pd.read_csv('data/train_neg_full.txt', header=None, delimiter='\t').sample(10000, random_state=3)
         neg['label'] = 0
 
         train_df = pd.concat([pos, neg]).sample(frac=1, random_state=42)
@@ -35,8 +35,11 @@ class DatasetLoader():
         
         examples = []
         labels = []
-        for i, tweet in df.iterrows():
+        from tqdm import tqdm
+        for i, tweet in tqdm(df.iterrows()):
+            
             text = normalizer.normalizeTweet(tweet['tweet'])
+            
             label = tweet['label']
             guid = str(i)
             ex = InputExample(guid=guid, text_a=text, text_b=None, label=label)
@@ -51,11 +54,8 @@ class DatasetLoader():
             return_tensors="pt",
         )
         l = torch.tensor([ex.label for ex in examples])
-        tokenized_targets = {'input_ids': l,
-                             'attention_mask' : torch.ones_like(l)}
         
-        dataset = TensorDataset(tokenized_inputs['input_ids'], tokenized_inputs['attention_mask'],
-                                tokenized_targets['input_ids'], tokenized_targets['attention_mask'] 
-                            )
+        
+        dataset = TensorDataset(tokenized_inputs['input_ids'], tokenized_inputs['attention_mask'], l)
         return dataset, labels
     

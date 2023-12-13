@@ -10,6 +10,8 @@ from transformers import (
     get_linear_schedule_with_warmup, AutoConfig, AutoTokenizer, AutoModelForSequenceClassification
 )
 
+#vinai/bertweet-base AutomodelForMaskedLM
+
 from load_data import DatasetLoader
 import metrics
 logger = logging.getLogger(__name__)
@@ -53,7 +55,6 @@ class Classifier:
         self.tokenizer = AutoTokenizer.from_pretrained(pretrained_model_name_or_path=self.pretrained_model_name_or_path,
                                                      do_lower_case=do_lower_case,
                                                      cache_dir=self.cache_dir)
-        
         self.data_loader = DatasetLoader(tokenizer=self.tokenizer)
 
         if self.tokenizer.pad_token is None:
@@ -82,7 +83,7 @@ class Classifier:
         t_total = len(train_dataloader) // gradient_accumulation_steps * num_train_epochs
 
        
-        model = AutoModelForSequenceClassification.from_pretrained(self.pretrained_model_name_or_path)
+        model = AutoModelForSequenceClassification.from_pretrained(self.pretrained_model_name_or_path, num_labels=2, ignore_mismatched_sizes=True)
         model.to(self.device)
 
         # Prepare optimizer and schedule (linear warmup and decay)
@@ -143,10 +144,14 @@ class Classifier:
 
                 model.train()
                 batch = tuple(t.to(self.device) for t in batch)
-                inputs = {"input_ids": batch[0], "attention_mask": batch[1], "labels": batch[2]}#, 'label_mask': batch[3]}
+                inputs = {"input_ids": batch[0], "attention_mask": batch[1], "labels": batch[2]}
+             
+                print(inputs['input_ids'].shape)
+                print(inputs['input_ids'][0].shape)
+                print("********")
+                print(inputs['labels'].shape)
                 
-                
-                outputs = model(**inputs)
+                outputs = model(input_ids=inputs['input_ids'], attention_mask=inputs['attention_mask'], labels=inputs['labels'])
                 
                 loss = outputs[0]  # model outputs are always tuple in transformers (see doc)
 
@@ -194,16 +199,18 @@ class Classifier:
         return global_step, tr_loss / global_step
 
     def predict(self, per_gpu_eval_batch_size):
-        eval_dataset, _ = self.data_loader.load_dataset('test')
-        model = AutoModelForSequenceClassification.from_pretrained(self.output_model_dir)
-        return self._predict(eval_dataset=eval_dataset,
+        test_dataset, _ = self.data_loader.load_dataset('test')
+        model = AutoModelForSequenceClassification.from_pretrained(self.output_model_dir, num_labels=2, ignore_mismatched_sizes=True)
+        return self._predict(eval_dataset=test_dataset,
                              per_gpu_eval_batch_size=per_gpu_eval_batch_size,
-                             model=model)
+                             model=model,
+                             testing=False)
 
     def _predict(self,
                  eval_dataset,
                  model,
-                 per_gpu_eval_batch_size):
+                 per_gpu_eval_batch_size,
+                 testing=False):
 
         eval_batch_size = per_gpu_eval_batch_size * max(1, self.n_gpu)
         eval_sampler = SequentialSampler(eval_dataset)
@@ -214,6 +221,9 @@ class Classifier:
         if self.n_gpu > 1 and not isinstance(model, torch.nn.DataParallel):
             model = torch.nn.DataParallel(model)
 
+        if testing:
+            sentiment_model = AutoModelForSequenceClassification.from_pretrained('cardiffnlp/twitter-roberta-base-sentiment-latest')
+            sentiment_tokenizer = AutoTokenizer.from_pretrained('cardiffnlp/twitter-roberta-base-sentiment-latest')
         # Eval!
         logger.info("  Num examples = %d", len(eval_dataset))
         logger.info("  Batch size = %d", eval_batch_size)
@@ -232,11 +242,37 @@ class Classifier:
                                 attention_mask=batch[1].to(self.device),
                                 )
                     
+                    if testing:
+                        sentiment_outs = sentiment_model(input_ids=batch[0].to(self.device),
+                                attention_mask=batch[1].to(self.device),
+                                )
+                        sentiment_logits = sentiment_outs.logits.to(self.device)
+                        
                 logits = outs.logits.to(self.device)
-                for log in logits:
-                    probs = sigmoid(log)
-                    preds.append(torch.argmax(probs).cpu().detach().numpy())
-           
+                        
+                if not testing:
+                    for log in logits:
+                        probs = torch.softmax(log)    
+                        preds.append(torch.argmax(probs).cpu().detach().numpy())
+            
+                else: 
+                    for finetuned_logits, sentiment_analysis_logits in zip(logits, sentiment_logits):
+                        finetuned_probs = sigmoid(finetuned_logits)
+                        sentiment_probs = sigmoid(sentiment_analysis_logits)[::2] # skip the neutral sentiment!!!!!! [::2] keeps first and third element
+                        
+                        finetuned_sentiment = torch.argmax(finetuned_probs).cpu().detach().numpy()
+                        pretrained_sentiment = torch.argmax(sentiment_probs).cpu().detach().numpy()
+                        
+                        if finetuned_sentiment == pretrained_sentiment:
+                            preds.append(finetuned_sentiment)
+                        
+                        elif finetuned_probs[finetuned_sentiment] > 0.8:
+                            preds.append(finetuned_sentiment)
+                        elif sentiment_probs[pretrained_sentiment] > 0.7: # if they disagree, use the pretrained sentiment
+                            preds.append(pretrained_sentiment)
+                        else: # if they disagree and both are not confident, use the pretrained sentiment
+                            preds.append(finetuned_sentiment)
+                        
                 ## to try
                 
 
