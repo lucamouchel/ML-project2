@@ -8,7 +8,7 @@ import tokenize
 import sys
 
 sys.path.append(".")
-from Trainer import Classifier
+from project.src.scripts.Trainer import Classifier
 DATA_FOLDER = 'data'
 
 

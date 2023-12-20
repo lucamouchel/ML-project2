@@ -2,7 +2,7 @@ import pandas as pd
 from transformers import InputExample, T5Tokenizer
 from torch.utils.data import TensorDataset
 import torch
-import TweetNormalizer as normalizer
+import project.src.utils.TweetNormalizer as normalizer
 
 class TestDatasetLoader():
     def __init__(self, tokenizer):

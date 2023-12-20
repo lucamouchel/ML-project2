@@ -1,17 +1,12 @@
 import argparse
 import os
-import csv
-import json
-import re
-import token
-import tokenize
 import sys
 
 sys.path.append(".")
 from Trainer import Classifier
 
 DATA_FOLDER = 'data'
-def training(per_gpu_train_batch_size,
+def training(train_batch_size,
              learning_rate,
              epochs,
              language_model,
@@ -23,7 +18,7 @@ def training(per_gpu_train_batch_size,
             cache_dir=os.path.join(DATA_FOLDER, 'pretrained'),
             pretrained_model_name_or_path=language_model
     )
-    classifier.train(per_gpu_train_batch_size=per_gpu_train_batch_size,
+    classifier.train(train_batch_size=train_batch_size,
                         learning_rate=learning_rate,
                         num_train_epochs=epochs,
                         gradient_accumulation_steps=grad_acc)

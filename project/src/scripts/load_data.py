@@ -2,7 +2,12 @@ import pandas as pd
 from transformers import InputExample, T5Tokenizer
 from torch.utils.data import TensorDataset
 import torch
-import TweetNormalizer as normalizer
+import sys
+
+sys.path.append(".")
+from project.src.utils import TweetNormalizer as normalizer
+import warnings
+warnings.filterwarnings("ignore")
 
 class DatasetLoader():
     def __init__(self, tokenizer):
@@ -23,9 +28,9 @@ class DatasetLoader():
         return train_df, dev_df, test_df
 
     def load_validation_dataset(self):
-        pos = pd.read_csv('data/train_pos_full.txt', header=None, delimiter='\t').sample(5000, random_state=30)
+        pos = pd.read_csv('data/train_pos.txt', header=None, delimiter='\t').sample(5000, random_state=30)
         pos['label'] = 1
-        neg = pd.read_csv('data/train_neg_full.txt', header=None, delimiter='\t').sample(5000, random_state=30)
+        neg = pd.read_csv('data/train_neg.txt', header=None, delimiter='\t').sample(5000, random_state=30)
         neg['label'] = 0
         return pd.concat([pos, neg]).sample(frac=1, random_state=42).rename(columns={0: 'tweet'})
         

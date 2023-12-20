@@ -1,11 +1,16 @@
 from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
-import metrics
 from load_data import DatasetLoader
+import sys
+sys.path.append(".")
+from project.src.utils import metrics
+
 data_loader = DatasetLoader(None)
 train, dev, test = data_loader.load_data()  
 val_set = data_loader.load_validation_dataset() 
 
 from transformers import pipeline
+import warnings
+warnings.filterwarnings("ignore")
 
 def classify_roberta():
     model_name = "cardiffnlp/twitter-roberta-base-sentiment-latest"

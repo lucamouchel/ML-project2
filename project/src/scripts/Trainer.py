@@ -1,6 +1,7 @@
 import logging
 import torch
-
+import sys
+sys.path.append(".")
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 from tqdm import tqdm, trange
 
@@ -10,13 +11,11 @@ from transformers import (
     get_linear_schedule_with_warmup, AutoConfig, AutoTokenizer, AutoModelForSequenceClassification, AutoModelForCausalLM
 )
 
-from transformers import RobertaForSequenceClassification, RobertaTokenizerFast, BertweetTokenizer   
-
-
-#vinai/bertweet-base AutomodelForMaskedLM
-
 from load_data import DatasetLoader
-import metrics
+from project.utils import metrics as metrics
+import warnings
+warnings.filterwarnings("ignore")
+
 logger = logging.getLogger(__name__)
 
 

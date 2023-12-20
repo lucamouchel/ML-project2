@@ -1,5 +1,7 @@
 
-from Trainer import Classifier
+import sys
+sys.path.append(".")
+from project.src.scripts.Trainer import Classifier
 import os
 import argparse
 

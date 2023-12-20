@@ -2,7 +2,8 @@ import logging
 import torch
 import os
 import pandas as pd
-
+import sys
+sys.path.append(".")
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 from tqdm import tqdm, trange
 
@@ -15,7 +16,7 @@ from transformers import (
 #vinai/bertweet-base AutomodelForMaskedLM
 
 from load_data_testing import DatasetLoader
-import metrics
+from project.src.utils import metrics
 logger = logging.getLogger(__name__)
 
 
