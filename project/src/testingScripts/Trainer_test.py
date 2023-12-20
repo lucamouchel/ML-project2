@@ -20,7 +20,7 @@ from project.src.utils import metrics
 logger = logging.getLogger(__name__)
 
 
-class Classifier:
+class ClassifierTest:
     def __init__(self,
                  output_model_dir,
                  pretrained_model_name_or_path,                 
@@ -209,10 +209,10 @@ class Classifier:
 
         validation_df = validation_dataset['label']
 
-        if not os.path.exists(os.path.join('validation_sets', self.pretrained_model_name_or_path)):
-          os.makedirs(os.path.join('validation_sets', self.pretrained_model_name_or_path))
+        if not os.path.exists(os.path.join('validation_sets', self.pretrained_model_name_or_path.split('/')[-1])):
+          os.makedirs(os.path.join('validation_sets', self.pretrained_model_name_or_path.split('/')[-1]))
 
-        validation_df.to_csv(os.path.join('validation_sets', self.pretrained_model_name_or_path, 'validation_set'), header=False)
+        validation_df.to_csv(os.path.join('validation_sets', self.pretrained_model_name_or_path.split('/')[-1], 'validation_set.csv'), header=False)
         model = AutoModelForSequenceClassification.from_pretrained(self.output_model_dir, num_labels=2, ignore_mismatched_sizes=True)
         return self._predict(eval_dataset=test_dataset,
                              per_gpu_eval_batch_size=per_gpu_eval_batch_size,

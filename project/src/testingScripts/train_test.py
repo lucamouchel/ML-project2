@@ -8,7 +8,7 @@ import tokenize
 import sys
 
 sys.path.append(".")
-from project.src.scripts.Trainer import Classifier
+from project.src.testingScripts.Trainer_test import ClassifierTest
 DATA_FOLDER = 'data'
 
 
@@ -19,8 +19,8 @@ def training(per_gpu_train_batch_size,
              grad_acc,
             ):
 
-    classifier = Classifier(
-            output_model_dir=f"models/{language_model.replace('/', '_')}",
+    classifier = ClassifierTest(
+            output_model_dir=f"testing_models{language_model.replace('/', '_')}",
             cache_dir=os.path.join(DATA_FOLDER, 'pretrained'),
             pretrained_model_name_or_path=language_model
     )

@@ -4,3 +4,4 @@ cl/
 wandb/
 results/
 model_testing_results/
+testing_models/
