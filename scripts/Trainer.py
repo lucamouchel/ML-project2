@@ -7,8 +7,11 @@ from tqdm import tqdm, trange
 from transformers import (
     AdamW,
     AutoModel,
-    get_linear_schedule_with_warmup, AutoConfig, AutoTokenizer, AutoModelForSequenceClassification
+    get_linear_schedule_with_warmup, AutoConfig, AutoTokenizer, AutoModelForSequenceClassification, AutoModelForCausalLM
 )
+
+from transformers import RobertaForSequenceClassification, RobertaTokenizerFast, BertweetTokenizer   
+
 
 #vinai/bertweet-base AutomodelForMaskedLM
 
@@ -65,15 +68,14 @@ class Classifier:
               gradient_accumulation_steps,
               num_train_epochs,
               learning_rate,
-              weight_decay=0.0,
-              warmup_steps=0,
-              adam_epsilon=1e-8,
-              max_grad_norm=1.0):
+              weight_decay=0.01,
+              warmup_steps=100,
+              adam_epsilon=1e-6,
+              max_grad_norm=10.0):
 
         """ Train the model """
         
-        train_batch_size = per_gpu_train_batch_size * max(1, self.n_gpu)
-        
+        train_batch_size = per_gpu_train_batch_size 
         train_dataset, _ = self.data_loader.load_dataset('train')
         val_dataset, val_labels = self.data_loader.load_dataset('dev')
      
@@ -82,9 +84,10 @@ class Classifier:
         train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=train_batch_size)
         t_total = len(train_dataloader) // gradient_accumulation_steps * num_train_epochs
 
-       
-        model = AutoModelForSequenceClassification.from_pretrained(self.pretrained_model_name_or_path, num_labels=2, ignore_mismatched_sizes=True)
+        
+        model = AutoModelForSequenceClassification.from_pretrained(self.pretrained_model_name_or_path, num_labels=2, cache_dir='models/cache')
         model.to(self.device)
+        
 
         # Prepare optimizer and schedule (linear warmup and decay)
         no_decay = ["bias", "LayerNorm.weight"]
@@ -133,7 +136,7 @@ class Classifier:
         train_iterator = trange(
             epochs_trained, int(num_train_epochs), desc="Epoch", disable=False
         )
-        save_steps = 200#len(train_dataset) // (per_gpu_train_batch_size * gradient_accumulation_steps* self.n_gpu)
+        save_steps = 2000#len(train_dataset) // (per_gpu_train_batch_size * gradient_accumulation_steps* self.n_gpu)
         for _ in train_iterator:
             epoch_iterator = tqdm(train_dataloader, desc="Iteration", disable=False)
             for step, batch in enumerate(epoch_iterator):
@@ -146,11 +149,6 @@ class Classifier:
                 batch = tuple(t.to(self.device) for t in batch)
                 inputs = {"input_ids": batch[0], "attention_mask": batch[1], "labels": batch[2]}
              
-                print(inputs['input_ids'].shape)
-                print(inputs['input_ids'][0].shape)
-                print("********")
-                print(inputs['labels'].shape)
-                
                 outputs = model(input_ids=inputs['input_ids'], attention_mask=inputs['attention_mask'], labels=inputs['labels'])
                 
                 loss = outputs[0]  # model outputs are always tuple in transformers (see doc)
@@ -199,81 +197,170 @@ class Classifier:
         return global_step, tr_loss / global_step
 
     def predict(self, per_gpu_eval_batch_size):
-        test_dataset, _ = self.data_loader.load_dataset('test')
+        using_validation_set = False
+        if not using_validation_set:
+            test_dataset, _ = self.data_loader.load_dataset('test')
+        else: 
+            test_dataset, labels = self.data_loader.load_dataset('validation/test')
+
         model = AutoModelForSequenceClassification.from_pretrained(self.output_model_dir, num_labels=2, ignore_mismatched_sizes=True)
-        return self._predict(eval_dataset=test_dataset,
+        preds = self._predict(eval_dataset=test_dataset,
                              per_gpu_eval_batch_size=per_gpu_eval_batch_size,
-                             model=model,
-                             testing=False)
+                             model=model)
+        if using_validation_set:
+            preds = [1 if label == 2 else label for label in preds]
+            acc, f1 = metrics.compute(predictions=preds, labels=labels)
+            print("Accuracy: ", acc)
+            print("F1: ", f1)
+        return preds
 
     def _predict(self,
                  eval_dataset,
                  model,
-                 per_gpu_eval_batch_size,
-                 testing=False):
-
+                 per_gpu_eval_batch_size):
+        
         eval_batch_size = per_gpu_eval_batch_size * max(1, self.n_gpu)
         eval_sampler = SequentialSampler(eval_dataset)
         eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=eval_batch_size)
 
+        #self.device = 'cpu'
         model.to(self.device)
         # multi-gpu eval
         if self.n_gpu > 1 and not isinstance(model, torch.nn.DataParallel):
             model = torch.nn.DataParallel(model)
-
-        if testing:
+            
+        do_additional_stuff = False
+        if do_additional_stuff:
             sentiment_model = AutoModelForSequenceClassification.from_pretrained('cardiffnlp/twitter-roberta-base-sentiment-latest')
-            sentiment_tokenizer = AutoTokenizer.from_pretrained('cardiffnlp/twitter-roberta-base-sentiment-latest')
+            sentiment_model.to(self.device)
         # Eval!
         logger.info("  Num examples = %d", len(eval_dataset))
         logger.info("  Batch size = %d", eval_batch_size)
         preds = []
-        sigmoid = torch.nn.Sigmoid()
+        confident = 0
+        
+        
+        
+        
+        use_causal_model = False
+        use_ensemble = True
+        if use_causal_model:
+            model_id = "microsoft/phi-2"
+            causal_tokenizer = AutoTokenizer.from_pretrained(model_id)
+            pretrained_model = AutoModelForCausalLM.from_pretrained(model_id, trust_remote_code=True)
+
+        if use_ensemble:
+            finetuned_model_dir = 'models/classifier'
+            bertweet = AutoModelForSequenceClassification.from_pretrained(finetuned_model_dir, num_labels=2)
+            bertweet_tokenizer = AutoTokenizer.from_pretrained(finetuned_model_dir, use_fast=False)
+
         for batch in tqdm(eval_dataloader, desc="Evaluating"):
             model.eval()
             with torch.no_grad():
                 if self.n_gpu > 1:
-                    outs = model.module(input_ids=batch[0].to(self.device),
-                                            attention_mask=batch[1].to(self.device),
-                                        )                   
-                    
+                    outs = model.module(input_ids=batch[0].to(self.device), attention_mask=batch[1].to(self.device))                    
                 else:
-                    outs = model(input_ids=batch[0].to(self.device),
-                                attention_mask=batch[1].to(self.device),
-                                )
-                    
-                    if testing:
-                        sentiment_outs = sentiment_model(input_ids=batch[0].to(self.device),
-                                attention_mask=batch[1].to(self.device),
-                                )
-                        sentiment_logits = sentiment_outs.logits.to(self.device)
+                    outs = model(input_ids=batch[0].to(self.device), attention_mask=batch[1].to(self.device))
+        
+                if do_additional_stuff:
+                    sentiment_outs = sentiment_model(input_ids=batch[0].to(self.device), attention_mask=batch[1].to(self.device))
+                    sentiment_logits = sentiment_outs.logits.to(self.device)
                         
                 logits = outs.logits.to(self.device)
-                        
-                if not testing:
-                    for log in logits:
-                        probs = torch.softmax(log)    
-                        preds.append(torch.argmax(probs).cpu().detach().numpy())
-            
-                else: 
-                    for finetuned_logits, sentiment_analysis_logits in zip(logits, sentiment_logits):
-                        finetuned_probs = sigmoid(finetuned_logits)
-                        sentiment_probs = sigmoid(sentiment_analysis_logits)[::2] # skip the neutral sentiment!!!!!! [::2] keeps first and third element
-                        
-                        finetuned_sentiment = torch.argmax(finetuned_probs).cpu().detach().numpy()
-                        pretrained_sentiment = torch.argmax(sentiment_probs).cpu().detach().numpy()
-                        
-                        if finetuned_sentiment == pretrained_sentiment:
-                            preds.append(finetuned_sentiment)
-                        
-                        elif finetuned_probs[finetuned_sentiment] > 0.8:
-                            preds.append(finetuned_sentiment)
-                        elif sentiment_probs[pretrained_sentiment] > 0.7: # if they disagree, use the pretrained sentiment
-                            preds.append(pretrained_sentiment)
-                        else: # if they disagree and both are not confident, use the pretrained sentiment
-                            preds.append(finetuned_sentiment)
-                        
-                ## to try
                 
-
+                if not do_additional_stuff:
+                    #print(logits)
+                    probs = torch.softmax(logits, dim=1)  
+                    for i, prob in enumerate(probs):
+                        max_proba = torch.max(prob)
+                        if max_proba > 0.8:
+                            confident+=1
+                            preds.append(torch.argmax(prob).cpu().detach().numpy())
+                            continue
+                        else:
+                            if use_causal_model:
+                                tweet = self.tokenizer.decode(batch[0][i], skip_special_tokens=True)
+                                prompt = f"""You are a sentiment classifier. What is the sentiment of {tweet}. Reply with one word: positive or negative """
+                                inputs = causal_tokenizer(prompt, return_tensors="pt")
+                                outputs = pretrained_model.generate(**inputs, max_new_tokens=5)
+                                output_text = causal_tokenizer.decode(outputs[0], skip_special_tokens=True)
+                                if 'negative' in output_text:
+                                    preds.append(0)
+                                    continue
+                                elif 'positive' in output_text:
+                                    preds.append(1)
+                                    continue
+                                else:
+                                    print("NOT OKAY")
+                                    preds.append(1)
+                                    continue
+                                
+                            elif use_ensemble:
+                                tweet = self.tokenizer.decode(batch[0][i], skip_special_tokens=True)
+                                bertweet_inputs = bertweet_tokenizer(tweet, return_tensors="pt")
+                                output = bertweet(**bertweet_inputs)
+                                bertweet_logits = output.logits.to(self.device)
+                                bertweet_probas = torch.softmax(bertweet_logits, dim=1).cpu().detach().numpy()[0]
+                                import numpy as np
+                                argmax_bertweet = np.argmax(bertweet_probas)
+                                
+                                if bertweet_probas[argmax_bertweet] > 0.8:
+                                    preds.append(argmax_bertweet)
+                                    continue
+                                
+                                prob = prob.cpu().detach().numpy()
+                                PROBAS = 0.6*prob + 0.4*bertweet_probas
+                                preds.append(np.argmax(PROBAS))
+                                
+                else: 
+                    finetuned_probas = torch.softmax(logits, dim=1)
+                    sentiment_probas = torch.softmax(sentiment_logits, dim=1)
+                    #finetuned_sentiment = torch.argmax(finetuned_probas, dim=1).cpu().detach().numpy()
+                    #pretrained_sentiment = torch.argmax(sentiment_probas, dim=1).cpu().detach().numpy()
+       
+                    not_confident = 0
+                    for (finetuned_probas, pretrained_probas) in zip(finetuned_probas, sentiment_probas):
+                        finetuned_neg = finetuned_probas[0].cpu().detach().numpy()
+                        finetuned_pos = finetuned_probas[1].cpu().detach().numpy()
+                        pretrained_neg = pretrained_probas[0].cpu().detach().numpy()
+                        pretrained_neutral = pretrained_probas[1].cpu().detach().numpy()
+                        pretrained_pos = pretrained_probas[2].cpu().detach().numpy()
+                        
+                        finetuned_probas = torch.tensor([finetuned_neg.item(), 0,finetuned_pos.item()])
+                        max_proba_finetuned = torch.argmax(finetuned_probas)
+                        max_pretrained = torch.argmax(pretrained_probas)
+                        
+                        if finetuned_probas[max_proba_finetuned] >= 0.75:
+                            confident += 1
+                            #print("CONFIDENT", confident)
+                            preds.append(max_proba_finetuned.cpu().detach().numpy())
+                            continue
+                        elif max_proba_finetuned == max_pretrained:
+                            preds.append(max_proba_finetuned.cpu().detach().numpy())
+                            continue
+                        
+                        if finetuned_probas[max_proba_finetuned] > 0.3 and finetuned_probas[max_pretrained] < 0.75:
+                            #print("NOT CONFIDENT", "XXX\nFinetuned" , max_proba_finetuned.item(), finetuned_probas[max_proba_finetuned].item(), '\nPretrained:', 
+                            #      max_pretrained.item(), pretrained_probas[max_pretrained].item())
+                            not_confident += 1
+                            if pretrained_neutral > 0.7:
+                                preds.append(1)
+                                continue
+                            
+                            if pretrained_probas[max_pretrained] > 0.7:
+                                preds.append(max_pretrained.cpu().detach().numpy())
+                                continue
+                          
+                            
+                        if pretrained_pos > 0.6 and finetuned_pos > 0.6:
+                            preds.append(1)
+                            continue
+                            
+                        if pretrained_neg > 0.6 and finetuned_neg > 0.6:  
+                            preds.append(0)
+                            continue
+                        
+                        preds.append(1)
+                        
+        print('CONFIDENT SAMPLES', confident)
         return preds

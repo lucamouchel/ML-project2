@@ -39,9 +39,9 @@ def parse_args():
     parser.add_argument('--epochs', default=5,help='number of epochs to train')
     parser.add_argument('--batch-size', default=8, help='batch size')
     parser.add_argument('--val-batch-size', default=8, help='validation batch size')
-    parser.add_argument('--lr', default=0.0001, help='learning rate')
+    parser.add_argument('--lr', default=8e-5, help='learning rate')
 
-    parser.add_argument('--gradient-accumulation', default=4)
+    parser.add_argument('--gradient-accumulation', default=2)
     return parser.parse_args()
 
 def main():
