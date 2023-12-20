@@ -3,3 +3,4 @@ data/
 cl/
 wandb/
 results/
+model_testing_results/
