@@ -9,9 +9,8 @@ import sys
 
 sys.path.append(".")
 from Trainer import Classifier
+
 DATA_FOLDER = 'data'
-
-
 def training(per_gpu_train_batch_size,
              learning_rate,
              epochs,
@@ -46,7 +45,7 @@ def parse_args():
 
 def main():
     args = parse_args()
-    training(per_gpu_train_batch_size=int(args.batch_size),
+    training(train_batch_size=int(args.batch_size),
                 epochs=int(args.epochs),
                 learning_rate=float(args.lr),
                 language_model=args.language_model,

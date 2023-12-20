@@ -9,16 +9,16 @@ class DatasetLoader():
         self.tokenizer = tokenizer
     
     def load_data(self):
-        pos = pd.read_csv('data/train_pos_full.txt', header=None, delimiter='\t').sample(400000, random_state=3)
+        pos = pd.read_csv('data/train_pos_full.txt', header=None, delimiter='\t\t').sample(200000, random_state=3)
         pos['label'] = 1
-        neg = pd.read_csv('data/train_neg_full.txt', header=None, delimiter='\t').sample(400000, random_state=3)
+        neg = pd.read_csv('data/train_neg_full.txt', header=None, delimiter='\t\t').sample(200000, random_state=3)
         neg['label'] = 0
 
         train_df = pd.concat([pos, neg]).sample(frac=1, random_state=42)
         dev_df = train_df.sample(frac=0.2, random_state=42).rename(columns={0: 'tweet'})
         train_df = train_df.drop(dev_df.index).rename(columns={0: 'tweet'})
         test_df = pd.read_csv('data/test_data.txt', delimiter='\t', header=None).rename(columns={0: 'tweet'})
-        test_df['label'] = -2
+        test_df['label'] = -200
         test_df = test_df
         return train_df, dev_df, test_df
 
@@ -44,7 +44,6 @@ class DatasetLoader():
             neg['label'] = 0
             df = pd.concat([pos, neg]).sample(frac=1, random_state=42).rename(columns={0: 'tweet'})
             df = df[~df.index.isin(train.index)].sample(n=1000, random_state=42)
-
         else: 
             raise ValueError("split should be in [train, dev, test]")    
         
