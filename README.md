@@ -81,7 +81,7 @@ The ```--model_dir``` parameter will take the directory of the saved pre-trained
 Finally, to validate the results of the test, run the following command:
 
 ```
-python project/src/testingScripts/model_testing.py --langauge-model <>
+python project/src/testingScripts/model_testing.py --model-name <>
 ```
 
 With ```language-model``` being the same path as used in the training step. This will then print the F1-score and accuracy for the fine-tuned model.
