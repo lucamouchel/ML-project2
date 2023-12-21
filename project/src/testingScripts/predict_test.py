@@ -25,7 +25,7 @@ def evaluate(model_dir, per_gpu_eval_batch_size):
     labels = [-1 if label == 0 else label for label in labels]
     ids = [i for i in range(1, len(labels)+1)]
     
-    pd.DataFrame(zip(ids, labels)).to_csv(f'submit_test_{language_model.split("/")[-1]}.csv', index=False, header=['Id', 'Prediction'])
+    pd.DataFrame(zip(ids, labels)).to_csv(f'submit_test_{language_model.replace("/", "_")}.csv', index=False, header=['Id', 'Prediction'])
     
 def main():
     parser = argparse.ArgumentParser(description='Evaluate model')

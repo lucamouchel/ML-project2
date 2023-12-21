@@ -20,7 +20,7 @@ def training(per_gpu_train_batch_size,
             ):
 
     classifier = ClassifierTest(
-            output_model_dir=f"testing_models{language_model.replace('/', '_')}",
+            output_model_dir=f"testing_models/{language_model.replace('/', '_')}",
             cache_dir=os.path.join(DATA_FOLDER, 'pretrained'),
             pretrained_model_name_or_path=language_model
     )

@@ -11,9 +11,9 @@ class DatasetLoader():
         self.tokenizer = tokenizer
     
     def load_data(self):
-        pos = pd.read_csv('data/train_pos.txt', header=None, delimiter='\t').sample(200, random_state=4)
+        pos = pd.read_csv('data/train_pos.txt', header=None, delimiter='\t').sample(100, random_state=4)
         pos['label'] = 1
-        neg = pd.read_csv('data/train_neg.txt', header=None, delimiter='\t').sample(200, random_state=4)
+        neg = pd.read_csv('data/train_neg.txt', header=None, delimiter='\t').sample(100, random_state=4)
         neg['label'] = 0
 
         train_test_split = 0.8
