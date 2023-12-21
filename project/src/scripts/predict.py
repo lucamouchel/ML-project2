@@ -28,7 +28,7 @@ def evaluate(model_dir, per_gpu_eval_batch_size):
     
 def main():
     parser = argparse.ArgumentParser(description='Evaluate model')
-    parser.add_argument('--model-dir', dest='model_dir', required=True,
+    parser.add_argument('--model-dir', dest='model_dir', required=True, default='cardiffnlp_twitter-roberta-base-sentiment-latest'
                         help='the folder/google bucket in which the model will be stored or loaded from.')
     
     parser.add_argument('--per_gpu_eval_batch_size', default=16, type=int)

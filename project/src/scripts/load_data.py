@@ -14,9 +14,9 @@ class DatasetLoader():
         self.tokenizer = tokenizer
     
     def load_data(self):
-        pos = pd.read_csv('data/train_pos_full.txt', header=None, delimiter='\t\t').sample(200000, random_state=3)
+        pos = pd.read_csv('data/train_pos_full.txt', header=None, delimiter='\t\t').sample(10000, random_state=3)
         pos['label'] = 1
-        neg = pd.read_csv('data/train_neg_full.txt', header=None, delimiter='\t\t').sample(200000, random_state=3)
+        neg = pd.read_csv('data/train_neg_full.txt', header=None, delimiter='\t\t').sample(10000, random_state=3)
         neg['label'] = 0
 
         train_df = pd.concat([pos, neg]).sample(frac=1, random_state=42)
@@ -65,7 +65,7 @@ class DatasetLoader():
         tokenized_inputs = self.tokenizer.batch_encode_plus(
             [ex.text_a for ex in examples],
             padding="longest",
-            max_length=130,
+            max_length=150,
             pad_to_max_length = True,
             truncation=True,
             return_tensors="pt",

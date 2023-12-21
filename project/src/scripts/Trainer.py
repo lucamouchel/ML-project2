@@ -12,12 +12,14 @@ from transformers import (
 )
 
 from load_data import DatasetLoader
-from project.utils import metrics as metrics
+from project.src.utils import metrics as metrics
 import warnings
 warnings.filterwarnings("ignore")
 
 logger = logging.getLogger(__name__)
 
+USE_ENSEMBLE = True
+USE_CAUSAL_MODEL = False
 
 class Classifier:
     def __init__(self,
@@ -42,7 +44,6 @@ class Classifier:
         
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.n_gpu = torch.cuda.device_count()
-        
         # Setup logging
         logging.basicConfig(
             format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
@@ -53,6 +54,7 @@ class Classifier:
         self.tokenizer = AutoTokenizer.from_pretrained(pretrained_model_name_or_path=self.pretrained_model_name_or_path,
                                                      do_lower_case=do_lower_case,
                                                      cache_dir=self.cache_dir)
+        
         self.data_loader = DatasetLoader(tokenizer=self.tokenizer)
 
         if self.tokenizer.pad_token is None:
@@ -66,7 +68,7 @@ class Classifier:
               weight_decay=0.01,
               warmup_steps=100,
               adam_epsilon=1e-6,
-              max_grad_norm=1.0):
+              max_grad_norm=10.0):
 
         """ Train the model """
         
@@ -77,8 +79,7 @@ class Classifier:
         train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=train_batch_size)
         t_total = len(train_dataloader) // gradient_accumulation_steps * num_train_epochs
 
-        
-        model = AutoModelForSequenceClassification.from_pretrained(self.pretrained_model_name_or_path, num_labels=2, ignore_mismatched_sizes=True, cache_dir=self.cache_dir)
+        model = AutoModelForSequenceClassification.from_pretrained(self.pretrained_model_name_or_path, num_labels=2, ignore_mismatched_sizes=True, cache_dir='models/cache')
         model.to(self.device)
 
         # Prepare optimizer and schedule (linear warmup and decay)
@@ -126,7 +127,7 @@ class Classifier:
         train_iterator = trange(
             epochs_trained, int(num_train_epochs), desc="Epoch", disable=False
         )
-        save_steps = 2000
+        save_steps = 10
         for _ in train_iterator:
             epoch_iterator = tqdm(train_dataloader, desc="Iteration", disable=False)
             for step, batch in enumerate(epoch_iterator):
@@ -164,8 +165,8 @@ class Classifier:
                         # Only evaluate when single GPU otherwise metrics may not avg well
                         preds = self._predict(eval_dataset=val_dataset,
                                                 per_gpu_eval_batch_size=train_batch_size,
-                                                model=model,
-                                            )
+                                                model=model)
+                            
                         accuracy, f1 = metrics.compute(predictions=preds, labels=val_labels)
 
                         if accuracy > best_acc or f1 > best_f1:
@@ -211,15 +212,12 @@ class Classifier:
         preds = []
         confident = 0
         
-        use_causal_model = False
-        use_ensemble = False
-        
-        if use_causal_model:
+        if USE_CAUSAL_MODEL:
             model_id = "microsoft/phi-2"
             causal_tokenizer = AutoTokenizer.from_pretrained(model_id)
             pretrained_model = AutoModelForCausalLM.from_pretrained(model_id, trust_remote_code=True)
 
-        if use_ensemble:
+        if USE_ENSEMBLE:
             finetuned_model_dir = 'models/classifier'
             bertweet = AutoModelForSequenceClassification.from_pretrained(finetuned_model_dir, num_labels=2)
             bertweet_tokenizer = AutoTokenizer.from_pretrained(finetuned_model_dir, use_fast=False)
@@ -231,20 +229,24 @@ class Classifier:
                     outs = model.module(input_ids=batch[0].to(self.device), attention_mask=batch[1].to(self.device))                    
                 else:
                     outs = model(input_ids=batch[0].to(self.device), attention_mask=batch[1].to(self.device))
-        
-                
                 logits = outs.logits.to(self.device)
-                
-                probs = torch.softmax(logits, dim=1)  
-                for i, prob in enumerate(probs):
-                    if use_ensemble or use_causal_model:
+                probs = torch.softmax(logits, dim=1) 
+
+                if not (USE_ENSEMBLE or USE_CAUSAL_MODEL):
+                    probas = torch.softmax(logits, dim=1)    
+                    for proba in probas:
+                        preds.append(torch.argmax(proba).cpu().detach().numpy())
+                        continue
+                    
+                else:
+                    for i, prob in enumerate(probs):
                         max_proba = torch.max(prob)
-                        if max_proba > 0.8:
+                        if max_proba > 0.7:
                             confident+=1
                             preds.append(torch.argmax(prob).cpu().detach().numpy())
                             continue
                         else:
-                            if use_causal_model:
+                            if USE_CAUSAL_MODEL:
                                 tweet = self.tokenizer.decode(batch[0][i], skip_special_tokens=True)
                                 prompt = f"""You are a sentiment classifier. What is the sentiment of {tweet}. Reply with one word: positive or negative """
                                 inputs = causal_tokenizer(prompt, return_tensors="pt")
@@ -261,7 +263,7 @@ class Classifier:
                                     preds.append(1)
                                     continue
                                 
-                            elif use_ensemble:
+                            elif USE_ENSEMBLE:
                                 tweet = self.tokenizer.decode(batch[0][i], skip_special_tokens=True)
                                 bertweet_inputs = bertweet_tokenizer(tweet, return_tensors="pt")
                                 output = bertweet(**bertweet_inputs)
@@ -270,15 +272,11 @@ class Classifier:
                                 import numpy as np
                                 argmax_bertweet = np.argmax(bertweet_probas)
                                 
-                                if bertweet_probas[argmax_bertweet] > 0.8:
+                                if bertweet_probas[argmax_bertweet] > 0.7:
                                     preds.append(argmax_bertweet)
                                     continue
-                                
+                            
                                 prob = prob.cpu().detach().numpy()
                                 PROBAS = 0.6*prob + 0.4*bertweet_probas
-                                preds.append(np.argmax(PROBAS))
-                                                        
-                    else: 
-                        
-                        preds.append(torch.argmax(prob).cpu().detach().numpy())
+                                preds.append(np.argmax(PROBAS))       
         return preds

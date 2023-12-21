@@ -10,14 +10,13 @@ def training(train_batch_size,
              learning_rate,
              epochs,
              language_model,
-             grad_acc,
-            ):
+             grad_acc):
 
     classifier = Classifier(
             output_model_dir=f"models/{language_model.replace('/', '_')}",
             cache_dir=os.path.join(DATA_FOLDER, 'pretrained'),
-            pretrained_model_name_or_path=language_model
-    )
+            pretrained_model_name_or_path=language_model)
+    
     classifier.train(train_batch_size=train_batch_size,
                         learning_rate=learning_rate,
                         num_train_epochs=epochs,
@@ -26,7 +25,7 @@ def training(train_batch_size,
 def parse_args():
     parser = argparse.ArgumentParser(description='train a binary classifier')
 
-    parser.add_argument('--language-model', default='cardiffnlp/twitter-roberta-base-sentiment', help='Can be either some huggingface model or a '
+    parser.add_argument('--language-model', default='cardiffnlp/twitter-roberta-base-sentiment-latest', help='Can be either some huggingface model or a '
                                                                          'path to a model. If the path is in GCS we '
                                                                          'download it first.')
     
