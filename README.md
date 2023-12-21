@@ -57,7 +57,7 @@ python project/src/scripts/predict.py --model-dir models/vinai_bertweet-base --p
 Before choosing a model, it is advisable to test each candidate on a sub-sample of the main dataset. Running the below command will train your model on a sub-sample of 14'080 tweets, and will test on 4'400 tweets:
 
 ```shell
-$ python project/src/scripts/train_test.py --language-model <> --epochs <> --batch-size <> --val-batch-size <> --lr <> --gradient-accumulation <>
+$ python project/src/testingScripts/train_test.py --language-model <> --epochs <> --batch-size <> --val-batch-size <> --lr <> --gradient-accumulation <>
 ```
 where ```--language-model``` is the HuggingFace model name, and must be a model suitable for text classification, as above.
 
@@ -73,7 +73,7 @@ with all other parameters as defaults.
 To predict using the above trained model, run:
 
 ```
-python project/src/scripts/predict_test.py --model-dir testing_models/<> --per_gpu_eval_batch_size <>
+python project/src/testingScripts/predict_test.py --model-dir testing_models/<> --per_gpu_eval_batch_size <>
 ```
 
 The ```--model_dir``` parameter will take the directory of the saved pre-trained model as a parameter. This is of the form ```testing_models/{model name as used for training}```. This is the same form as above, i.e. If you train the model say `vinai/bertweet-base`, then the finetuned model will be saved during training to `testing_models/vinai_bertweet-base`.
