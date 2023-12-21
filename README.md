@@ -7,10 +7,10 @@ Install VirtualEnv using the following (optional):
 $ [sudo] pip install virtualenv
 ```
 
-Create and activate your virtual environment (optional):
+Create and activate your virtual environment using Python version 3.8 (optional):
 
 ```shell
-$ virtualenv -p python3 venv
+$ virtualenv -p python3.8 venv
 $ source venv/bin/activate
 ```
 
