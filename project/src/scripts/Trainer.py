@@ -199,6 +199,8 @@ class Classifier:
                  model,
                  per_gpu_eval_batch_size):
         
+        ## prediction function for the validation set.
+        ## setting evaluation data for 
         eval_batch_size = per_gpu_eval_batch_size * max(1, self.n_gpu)
         eval_sampler = SequentialSampler(eval_dataset)
         eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=eval_batch_size)
