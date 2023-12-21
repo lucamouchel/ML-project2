@@ -50,3 +50,38 @@ If you train the model with another language model, say `vinai/bertweet-base`, t
 ```
 python project/src/scripts/predict.py --model-dir models/vinai_bertweet-base --per_gpu_eval_batch_size <>
 ```
+
+## Model Pre-testing
+
+Before choosing a model, it is advisable to test each candidate on a sub-sample of the main dataset. Running the below command will train your model on a sub-sample of 14'080 tweets, and will test on 4'400 tweets:
+
+```shell
+$ python project/src/scripts/train_test.py --language-model <> --epochs <> --batch-size <> --val-batch-size <> --lr <> --gradient-accumulation <>
+```
+where ```--language-model``` is the HuggingFace model name, and must be a model suitable for text classification, as above.
+
+**Note:** For our purposes, we used the following parameters:
+
+| Parameter          | Value  |
+|:------------------:|:------:|
+|```--epochs```      |  4     |
+|```--batch_size```  | 32     |
+
+with all other parameters as defaults.
+
+To predict using the above trained model, run:
+
+```
+python project/src/scripts/predict_test.py --model-dir testing_models/<> --per_gpu_eval_batch_size <>
+```
+
+The ```--model_dir``` parameter will take the directory of the saved pre-trained model as a parameter. This is of the form ```testing_models/{model name as used for training)
+
+Finally, to validate the results of the test, run the following command:
+
+```
+python project/src/testingScripts/model_testing.py --langauge-model <>
+```
+
+With ```language-model``` being the same path as used in the training step.
+
