@@ -76,7 +76,7 @@ To predict using the above-trained model, run:
 python project/src/testingScripts/predict_test.py --model-dir testing_models/<> --per_gpu_eval_batch_size <>
 ```
 
-The ```--model_dir``` parameter will take the directory of the saved pre-trained model as a parameter. This is of the form ```testing_models/{model name as used for training}```. This is the same form as above, i.e. If you train the model say `vinai/bertweet-base`, then the finetuned model will be saved during training to `testing_models/vinai_bertweet-base`.
+The ```--model_dir``` parameter will take the directory of the saved pre-trained model as a parameter. This is the same form as used in the general model predict section, i.e. If you train the model say `vinai/bertweet-base`, then the finetuned model will be saved during training to `testing_models/vinai_bertweet-base`. This is the path that should be used as argument for ```--model-dir```
 
 Finally, to validate the results of the test, run the following command:
 
