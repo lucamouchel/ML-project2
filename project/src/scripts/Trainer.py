@@ -169,14 +169,15 @@ class Classifier:
                             
                         accuracy, f1 = metrics.compute(predictions=preds, labels=val_labels)
 
-                        if accuracy > best_acc or f1 > best_f1:
-                            model_to_save = (
+                        if accuracy > best_acc or f1 > best_f1: 
+                            print("Saving model checkpoint to %s", self.output_model_dir)
+                            model_to_save = (   
                                 model.module if hasattr(model, "module") else model
                             )  # Take care of distributed/parallel training
                             model_to_save.save_pretrained(self.output_model_dir)
                         
                             print(f"accuracy improved, previous {best_acc}, new one {accuracy}")
-                            print(f"f1 improved, previous {best_f1}, new one {f1}")
+                            print(f"f1 improved, previous {best_f1}, new one {f1}") 
                             best_acc = accuracy
                             best_f1 = f1
                         else:
@@ -241,7 +242,7 @@ class Classifier:
                 else:
                     for i, prob in enumerate(probs):
                         max_proba = torch.max(prob)
-                        if max_proba > 0.7:
+                        if max_proba > 0.85:
                             confident+=1
                             preds.append(torch.argmax(prob).cpu().detach().numpy())
                             continue
@@ -272,11 +273,11 @@ class Classifier:
                                 import numpy as np
                                 argmax_bertweet = np.argmax(bertweet_probas)
                                 
-                                if bertweet_probas[argmax_bertweet] > 0.7:
+                                if bertweet_probas[argmax_bertweet] > 0.85:
                                     preds.append(argmax_bertweet)
                                     continue
                             
                                 prob = prob.cpu().detach().numpy()
-                                PROBAS = 0.6*prob + 0.4*bertweet_probas
+                                PROBAS = 0.7*prob + 0.3*bertweet_probas
                                 preds.append(np.argmax(PROBAS))       
         return preds
