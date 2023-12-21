@@ -12,6 +12,9 @@ DATA_FOLDER = 'data/eval'
 
 
 def evaluate(model_dir, per_gpu_eval_batch_size):
+    """
+    Evaluates the pre-trained model and saves the predictions.
+    """
     language_model = model_dir.split("/")[-1].replace("_", "/")
     _classifier = ClassifierTest(output_model_dir=model_dir, 
                             cache_dir=os.path.join(DATA_FOLDER, 'pretrained'),
