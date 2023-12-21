@@ -28,7 +28,7 @@ class Classifier:
                  cache_dir='data/pretrained/',
                  do_lower_case=True):
         
-      
+        # Setup CUDA, GPU & distributed training and all variables
         self.output_model_dir = output_model_dir
 
         self.logger = logging.getLogger(__name__)
@@ -39,8 +39,6 @@ class Classifier:
         logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
                             datefmt='%m/%d/%Y %H:%M:%S',
                             level=logging.INFO)
-
-        # Setup CUDA, GPU & distributed training
         
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.n_gpu = torch.cuda.device_count()
@@ -71,7 +69,7 @@ class Classifier:
               max_grad_norm=10.0):
 
         """ Train the model """
-        
+        #### Load data ####
         train_dataset, _ = self.data_loader.load_dataset('train')
         val_dataset, val_labels = self.data_loader.load_dataset('dev')
         
@@ -99,6 +97,7 @@ class Classifier:
             optimizer, num_warmup_steps=warmup_steps, num_training_steps=t_total
         )
 
+        # multi-gpu training
         if self.n_gpu > 1:
             model = torch.nn.DataParallel(model)
 
@@ -127,7 +126,7 @@ class Classifier:
         train_iterator = trange(
             epochs_trained, int(num_train_epochs), desc="Epoch", disable=False
         )
-        save_steps = 10
+        save_steps = 500
         for _ in train_iterator:
             epoch_iterator = tqdm(train_dataloader, desc="Iteration", disable=False)
             for step, batch in enumerate(epoch_iterator):
@@ -162,13 +161,13 @@ class Classifier:
 
                     if save_steps > 0 and global_step % save_steps == 0:
                     # Log metrics
-                        # Only evaluate when single GPU otherwise metrics may not avg well
                         preds = self._predict(eval_dataset=val_dataset,
                                                 per_gpu_eval_batch_size=train_batch_size,
                                                 model=model)
                             
                         accuracy, f1 = metrics.compute(predictions=preds, labels=val_labels)
 
+                        ## save model if accuracy or f1 improved
                         if accuracy > best_acc or f1 > best_f1: 
                             print("Saving model checkpoint to %s", self.output_model_dir)
                             model_to_save = (   
@@ -187,6 +186,7 @@ class Classifier:
         return global_step, tr_loss / global_step
 
     def predict(self, per_gpu_eval_batch_size):
+        ## prediction funciton for the test set.
         test_dataset, _ = self.data_loader.load_dataset('test')
         model = AutoModelForSequenceClassification.from_pretrained(self.output_model_dir, num_labels=2, ignore_mismatched_sizes=True)
         preds = self._predict(eval_dataset=test_dataset,
@@ -211,7 +211,6 @@ class Classifier:
         logger.info("  Num examples = %d", len(eval_dataset))
         logger.info("  Batch size = %d", eval_batch_size)
         preds = []
-        confident = 0
         
         if USE_CAUSAL_MODEL:
             model_id = "microsoft/phi-2"
@@ -221,8 +220,7 @@ class Classifier:
         if USE_ENSEMBLE:
             finetuned_model_dir = 'models/classifier'
             bertweet = AutoModelForSequenceClassification.from_pretrained(finetuned_model_dir, num_labels=2)
-            bertweet_tokenizer = AutoTokenizer.from_pretrained(finetuned_model_dir, use_fast=False)
-
+            bertweet_tokenizer = AutoTokenizer.from_pretrained('vinai/bertweet-base', use_fast=False)
         for batch in tqdm(eval_dataloader, desc="Evaluating"):
             model.eval()
             with torch.no_grad():
@@ -233,6 +231,8 @@ class Classifier:
                 logits = outs.logits.to(self.device)
                 probs = torch.softmax(logits, dim=1) 
 
+
+                ### in this section we implement Fig 1 of the paper.
                 if not (USE_ENSEMBLE or USE_CAUSAL_MODEL):
                     probas = torch.softmax(logits, dim=1)    
                     for proba in probas:
@@ -242,11 +242,11 @@ class Classifier:
                 else:
                     for i, prob in enumerate(probs):
                         max_proba = torch.max(prob)
-                        if max_proba > 0.85:
-                            confident+=1
+                        if max_proba > 0.85: # if confident, just use the model
                             preds.append(torch.argmax(prob).cpu().detach().numpy())
                             continue
                         else:
+                            # if promptinig, we decode the batch samples and tokenize them using the correct tokenizers and feed the prompt to the model.
                             if USE_CAUSAL_MODEL:
                                 tweet = self.tokenizer.decode(batch[0][i], skip_special_tokens=True)
                                 prompt = f"""You are a sentiment classifier. What is the sentiment of {tweet}. Reply with one word: positive or negative """
@@ -265,6 +265,7 @@ class Classifier:
                                     continue
                                 
                             elif USE_ENSEMBLE:
+                                ## this is the best performing method, using 2 finetuned models to make a prediction.
                                 tweet = self.tokenizer.decode(batch[0][i], skip_special_tokens=True)
                                 bertweet_inputs = bertweet_tokenizer(tweet, return_tensors="pt")
                                 output = bertweet(**bertweet_inputs)
