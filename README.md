@@ -27,11 +27,19 @@ You might need `flash_attn` package as well which can be downloaded with `pip in
 By default, we do not use the prompting mechanism as it takes a long time and has a worse performance.
 
 ### Training 
-By default, training is done with a RoBERTa model pretrained for sentiment analysis on 124M tweets (`cardiffnlp/twitter-roberta-base-sentiment-latest`). You can directly run the `project/src/scripts/train.py` file and launch the training.
-However, training is very customizable, and you can train with different models from the command line, simply run the following command:
+By default, training is done with a RoBERTa model pretrained for sentiment analysis on 124M tweets (`cardiffnlp/twitter-roberta-base-sentiment-latest`). You can directly run the `project/src/scripts/train.py` file and launch the training with its default parameters. Evaluation is done every 1000 steps.
 
+However, training is very customizable, and you can train with different models from the command line, simply run the following command:
 ```
 python project/src/scripts/train.py --language-model <> --epochs <> --batch-size <> --val-batch-size <> --lr <> --gradient-accumulation <>
 ```
+`language-model` is the HuggingFace model name and can be any pretrained-model which is suitable for classification (e.g., `bert-base-cased`, or 'vinai/bertweet-base').
 
-`language-model` is the HuggingFace model name and can be any pretrained-model which is suitable for classification (e.g., `bert-base-cased`)
+By default, we also use the ensemble method and not the prompting one, you can change this manually at the top of the `Trainer.py` file.
+### Testing
+You can also launch the `project/src/scripts/predict.py` without any arguments to launch the prediction. By default, it will use the fine-tuned folder saved by the training output which was trained without any outputs.
+If you train the model with another language model, say `vinai/bertweet-base`, then the finetuned model will be saved during training to `models/vinai_bertweet-base` and you can launch the prediction with this model by using: 
+
+```
+python project/src/scripts/predict.py --model-dir models/vinai_bertweet-base --per_gpu_eval_batch_size <>
+```
