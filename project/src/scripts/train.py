@@ -23,6 +23,10 @@ def training(train_batch_size,
                         gradient_accumulation_steps=grad_acc)
 
 def parse_args():
+    """
+    Parsing input arguments which makes the training process customizable. 
+    We have default arguments as well.
+    """
     parser = argparse.ArgumentParser(description='train a binary classifier')
 
     parser.add_argument('--language-model', default='cardiffnlp/twitter-roberta-base-sentiment-latest', help='Can be either some huggingface model or a '
@@ -38,6 +42,9 @@ def parse_args():
     return parser.parse_args()
 
 def main():
+    """
+    launch the training process here
+    """
     args = parse_args()
     training(train_batch_size=int(args.batch_size),
                 epochs=int(args.epochs),

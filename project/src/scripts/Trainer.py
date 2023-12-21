@@ -117,7 +117,7 @@ class Classifier:
         epochs_trained = 0
         steps_trained_in_current_epoch = 0
 
-        tr_loss, logging_loss = 0.0, 0.0
+        tr_loss = 0.0
        
         best_acc = 0
         best_f1 = 0
@@ -212,12 +212,16 @@ class Classifier:
         logger.info("  Batch size = %d", eval_batch_size)
         preds = []
         
+        ### we load the models if we decide on the optimization technique to use -- either using a causal model or an ensemble of 2 finetuned models.
         if USE_CAUSAL_MODEL:
             model_id = "microsoft/phi-2"
             causal_tokenizer = AutoTokenizer.from_pretrained(model_id)
             pretrained_model = AutoModelForCausalLM.from_pretrained(model_id, trust_remote_code=True)
 
         if USE_ENSEMBLE:
+            """
+            models/classifier contains the finetuned bertweet model which performed 0.89 on the test set
+            """
             finetuned_model_dir = 'models/classifier'
             bertweet = AutoModelForSequenceClassification.from_pretrained(finetuned_model_dir, num_labels=2)
             bertweet_tokenizer = AutoTokenizer.from_pretrained('vinai/bertweet-base', use_fast=False)
@@ -260,7 +264,7 @@ class Classifier:
                                     preds.append(1)
                                     continue
                                 else:
-                                    print("NOT OKAY")
+                                    ## this never happens but just in case ;)
                                     preds.append(1)
                                     continue
                                 
