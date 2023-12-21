@@ -27,10 +27,10 @@ $ pip install -r requirements.txt
 You might need `flash_attn` package as well which can be downloaded with `pip install flash_attn`.
 By default, we do not use the prompting mechanism as it takes a long time and has a worse performance.
 
-Finally, for the setup, please download the `models` folder from this google drive [link](https://drive.google.com/drive/folders/1l3aLZKx6CEmrw2CkTRApKoM39RnwrjU8?usp=drive_link), which contains two fine-tuned models. Make sure they are located in a directory called "models". The model named `classifier` is the fine-tuned bertweet model which we use when we apply the ensemble mechanism. The other model is the best performing fine-tuned model. __This part is crucial, or the prediction will not work. Please email luca.mouchel@epfl.ch in case you have troubles__.
+There are two final steps, for the setup, please download the `models` folder from this Google Drive [link](https://drive.google.com/drive/folders/1l3aLZKx6CEmrw2CkTRApKoM39RnwrjU8?usp=drive_link), which contains two fine-tuned models. Make sure they are located in a directory called "models". The model named `classifier` is the fine-tuned BERTweet model which we use when we apply the ensemble mechanism. The other model is the best-performing fine-tuned model. Besides downloading the model, please take the Tweet dataset and make sure they are located in a folder named "data". __These two parts are crucial, or the prediction will not work. Please email luca.mouchel@epfl.ch in case you have troubles__.
 
 ### Training 
-By default, training is done with a RoBERTa model pretrained for sentiment analysis on 124M tweets (`cardiffnlp/twitter-roberta-base-sentiment-latest`). You can directly run the `project/src/scripts/train.py` file and launch the training with its default parameters. Evaluation is done every 1000 steps.
+By default, training is done with a RoBERTa model pre-trained for sentiment analysis on 124M tweets (`cardiffnlp/twitter-roberta-base-sentiment-latest`). You can directly run the `project/src/scripts/train.py` file and launch the training with its default parameters. Evaluation is done every 1000 steps.
 
 However, training is very customizable, and you can train with different models from the command line, simply run the following command:
 ```
@@ -44,7 +44,7 @@ We advise not to train any model, because it will take a very long time.
 ### Testing
 You can also launch the `project/src/scripts/predict.py` without any arguments to launch the prediction on the test set, the output csv will be saved at the root of the project. Launching this will use both models saved in the `models` directory you downloaded from GDrive and will produce a csv which scores 0.899 on AICrowd.
 
-If you do not give any arguments, it will use the best performing model we used and do the prediction on the test set. 
+If you do not give any arguments, it will use the best-performing model we used and do the prediction on the test set. 
 
 If you train the model with another language model, say `vinai/bertweet-base`, then the finetuned model will be saved during training to `models/vinai_bertweet-base` and you can launch the prediction with this model by using: 
 
@@ -70,7 +70,7 @@ where ```--language-model``` is the HuggingFace model name, and must be a model 
 
 with all other parameters as defaults.
 
-To predict using the above trained model, run:
+To predict using the above-trained model, run:
 
 ```
 python project/src/testingScripts/predict_test.py --model-dir testing_models/<> --per_gpu_eval_batch_size <>
@@ -84,5 +84,5 @@ Finally, to validate the results of the test, run the following command:
 python project/src/testingScripts/model_testing.py --langauge-model <>
 ```
 
-With ```language-model``` being the same path as used in the training step. This will then print the F1-score and accuracy for the fine tuned model.
+With ```language-model``` being the same path as used in the training step. This will then print the F1-score and accuracy for the fine-tuned model.
 
