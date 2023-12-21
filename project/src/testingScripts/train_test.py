@@ -18,7 +18,9 @@ def training(per_gpu_train_batch_size,
              language_model,
              grad_acc,
             ):
-
+    """
+    Trains the model language_model on the train set created from load_data_testing.py
+    """
     classifier = ClassifierTest(
             output_model_dir=f"testing_models/{language_model.replace('/', '_')}",
             cache_dir=os.path.join(DATA_FOLDER, 'pretrained'),
