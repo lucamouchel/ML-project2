@@ -15,9 +15,9 @@ class DatasetLoader():
         Loads in data from data/train_pos.txt and data/train_neg.txt
         """
         # Loading in positive and negative samples
-        pos = pd.read_csv('data/train_pos.txt', header=None, delimiter='\t').sample(100, random_state=4)
+        pos = pd.read_csv('data/train_pos.txt', header=None, delimiter='\t').sample(11000, random_state=4)
         pos['label'] = 1
-        neg = pd.read_csv('data/train_neg.txt', header=None, delimiter='\t').sample(100, random_state=4)
+        neg = pd.read_csv('data/train_neg.txt', header=None, delimiter='\t').sample(11000, random_state=4)
         neg['label'] = 0
         
         train_test_split = 0.8 # 80% of data to training, 20% to testing
