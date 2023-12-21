@@ -13,6 +13,9 @@ import warnings
 warnings.filterwarnings("ignore")
 
 def classify_roberta():
+    """
+    zero shot classification using roberta pretrained on 124M tweets
+    """
     model_name = "cardiffnlp/twitter-roberta-base-sentiment-latest"
     model = AutoModelForSequenceClassification.from_pretrained(model_name)
     tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -24,8 +27,6 @@ def classify_roberta():
     for pred in predictions:
         preds.append(1 if pred['label'] == 'positive' or pred['label'] == 'neutral' else 0)
     
-    
-
     print(metrics.compute(preds, labels))
 
 def classify_bart():
@@ -44,4 +45,8 @@ def classify_bart():
         preds.append(np.argmax(pred['scores']))
 
     print(metrics.compute(preds, labels))
-classify_bart()
+    
+if __name__ == '__main__':
+    ## you can run this if you want 
+    classify_roberta()
+    classify_bart()
