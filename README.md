@@ -19,6 +19,7 @@ Before installing the required packages, if you wish to run the training or pred
 $ export CUDA_HOME=/path/to/CUDA
 ```
 Otherwise, you can skip this.
+
 Then, install all the required packages:
 ```shell
 $ pip install -r requirements.txt
@@ -75,7 +76,7 @@ To predict using the above trained model, run:
 python project/src/scripts/predict_test.py --model-dir testing_models/<> --per_gpu_eval_batch_size <>
 ```
 
-The ```--model_dir``` parameter will take the directory of the saved pre-trained model as a parameter. This is of the form ```testing_models/{model name as used for training)
+The ```--model_dir``` parameter will take the directory of the saved pre-trained model as a parameter. This is of the form ```testing_models/{model name as used for training}```. This is the same form as above, i.e. If you train the model say `vinai/bertweet-base`, then the finetuned model will be saved during training to `testing_models/vinai_bertweet-base`.
 
 Finally, to validate the results of the test, run the following command:
 
@@ -83,5 +84,5 @@ Finally, to validate the results of the test, run the following command:
 python project/src/testingScripts/model_testing.py --langauge-model <>
 ```
 
-With ```language-model``` being the same path as used in the training step.
+With ```language-model``` being the same path as used in the training step. This will then print the F1-score and accuracy for the fine tuned model.
 
